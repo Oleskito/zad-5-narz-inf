@@ -1,4 +1,12 @@
-from src.models import Apartment, Bill, Parameters, Tenant, Transfer
+from src.models import (
+    Apartment,
+    ApartmentSettlement,
+    Bill,
+    Parameters,
+    Tenant,
+    TenantSettlement,
+    Transfer,
+)
 
 
 class Manager:
@@ -50,3 +58,57 @@ class Manager:
                         cost += bill.amount_pln
 
         return cost
+
+    def create_apartment_settlement(
+        self, apartment_key: str, year: int, month: int
+    ) -> ApartmentSettlement | None:
+        total_bills = self.get_apartment_costs(apartment_key, year, month)
+        if total_bills is None:
+            return None
+
+        total_rent = 0.0
+        total_due = total_rent + total_bills
+
+        return ApartmentSettlement(
+            apartment=apartment_key,
+            month=month,
+            year=year,
+            total_rent_pln=total_rent,
+            total_bills_pln=total_bills,
+            total_due_pln=total_due,
+        )
+
+    def create_tenant_settlements(
+        self, apartment_settlement: ApartmentSettlement
+    ) -> list[TenantSettlement]:
+        apartment_tenants = [
+            tenant_key
+            for tenant_key, tenant in self.tenants.items()
+            if tenant.apartment == apartment_settlement.apartment
+        ]
+
+        if not apartment_tenants:
+            return []
+
+        bills_per_tenant = apartment_settlement.total_bills_pln / len(apartment_tenants)
+
+        settlements = []
+        for tenant_key in apartment_tenants:
+            rent = 0.0
+            total_due = rent + bills_per_tenant
+            balance = -total_due
+
+            settlements.append(
+                TenantSettlement(
+                    tenant=tenant_key,
+                    apartment_settlement=apartment_settlement.apartment,
+                    month=apartment_settlement.month,
+                    year=apartment_settlement.year,
+                    rent_pln=rent,
+                    bills_pln=bills_per_tenant,
+                    total_due_pln=total_due,
+                    balance_pln=balance,
+                )
+            )
+
+        return settlements
